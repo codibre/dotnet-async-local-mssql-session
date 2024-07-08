@@ -4,8 +4,6 @@ name: test
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
 
 env:
   ConnectionStrings__SqlConnection: ${{ secrets.CONNECTIONSTRINGS__SQLCONNECTION }}

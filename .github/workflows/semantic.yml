@@ -29,8 +29,13 @@ jobs:
       - name: Prepare Db
         run: npm run prepare-test-db
 
-      - name: Run tests
-        run: npm run test
+      - name: Test
+        uses: paambaati/codeclimate-action@v2.6.0
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        with:
+          coverageCommand: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./coverage/lcov.info
+          coverageLocations: ${{github.workspace}}/test/Codibre.MSSqlSession.Test/coverage/lcov.info:lcov
       
       - name: Prepare Node
         uses: actions/setup-node@v3
