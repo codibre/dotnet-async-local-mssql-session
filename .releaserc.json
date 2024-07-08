@@ -12,7 +12,7 @@
   ],
   "preset": "angular",
   "npmPublish": false,
-  "projectPath": "SqlServerMock/Codibre.SqlServerMock.csproj",
+  "projectPath": "src/Codibre.MSSqlSession/Codibre.MSSqlSession.csproj",
   "usePackageVersion": true,
   "files": [
     {
