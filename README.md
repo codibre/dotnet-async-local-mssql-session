@@ -105,3 +105,23 @@ If the transaction becomes too large to be fit in a single call, then it will be
 ```c#
 await _session.BatchQuery.FlushTransaction();
 ```
+
+## CustomPool management
+
+Official SqlClient has a known connection pool problem, where it can't stablish more than 1 connection at the same time, this is being discussed [here](https://github.com/dotnet/SqlClient/discussions/2612). This is a specially bigger problem when we're facing high latency environments. While an official fix is not released, this library tries to offer an alternative using [**MyDotey.ObjectPool**](https://www.nuget.org/packages/MyDotey.ObjectPool) to manage the pool. Simultaneous connection can be stablished as long Pooling is false. The idea here is to create the connections pool free under the hood, and control in code the pool with the mentioned library. To use this option, the IConfiguration instance injected must have **SqlConfig.CustomPool** as "True".
+
+```c#
+configuration.GetSection("SqlConfig").GetSection("CustomPool").Value = "True"
+```
+
+Connection strings with pooling enabled, with this option, will be rewritten to create non pooling connections, and a ObjectPool will be created with **MyDotey.ObjectPool** with the same min and max options used in the connection string.
+
+## Eager Load
+
+By default, .net applications works with a lazy load approach to injected services, but this puts an overload in the first request for a instance of a service. In a auto-scaled environment, this can generate eventual delays on requests. To minimize that, a extension method is offered so the database connection can be initialized at application bootstrap:
+
+```c#
+app.Services.StartConnection();
+```
+
+This has no use if you're not using connection pool, or the Min Pool is 0, of course, but if you want to have at least 1 connection established every time, then this will remove the overload of creating it at the first request.
