@@ -1,3 +1,10 @@
+## [0.0.3](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.2...v0.0.3) (2024-07-21)
+
+
+### Bug Fixes
+
+* fixing RunInTransaction ([c1007a6](https://github.com/codibre/dotnet-async-local-mssql-session/commit/c1007a62767367adbb7c0c79dee7b6f80b5af691))
+
 ## [0.0.2](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.1...v0.0.2) (2024-07-08)
 
 
