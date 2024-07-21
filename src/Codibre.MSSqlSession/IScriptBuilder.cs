@@ -6,6 +6,7 @@ public interface IScriptBuilder
 {
     void Prepend(FormattableString query);
     void Add(FormattableString query);
+    bool TryAdd(FormattableString query);
     void Clear();
     Task ExecuteAsync(TimeSpan? customTimeout = null);
     Task<IEnumerable<T>> QueryAsync<T>();

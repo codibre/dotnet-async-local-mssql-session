@@ -1,5 +1,6 @@
 ﻿using System.Data;
 using System.Data.Common;
+using Codibre.MSSqlSession.Impl.Utils;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
