@@ -101,7 +101,8 @@ internal class AsyncSqlConnection : DbConnection
         _opened = false;
     }
 
-    private async void ReleaseConnection()
+    private void ReleaseConnection()
+    => _ = Task.Run(async () =>
     {
         try
         {
@@ -116,7 +117,7 @@ internal class AsyncSqlConnection : DbConnection
         {
             SqlConnectionFactory.ReleaseConnection(_pooledConnection);
         }
-    }
+    });
 
     public override void Open()
     {
@@ -184,131 +185,4 @@ internal class AsyncSqlConnection : DbConnection
         }
         base.Dispose(disposing);
     }
-}
-
-public class AsyncDbTransaction : DbTransaction
-{
-    internal SqlTransaction InternalDbTransaction { get; }
-    public override IsolationLevel IsolationLevel => InternalDbTransaction.IsolationLevel;
-
-    protected override DbConnection DbConnection => InternalDbTransaction.Connection;
-    private readonly DbConnection _connection;
-
-    internal AsyncDbTransaction(
-        SqlTransaction dbTransaction,
-        DbConnection connection
-    )
-    {
-        InternalDbTransaction = dbTransaction;
-        _connection = connection;
-    }
-
-    public override void Commit()
-    {
-        InternalDbTransaction.Commit();
-        _connection.Close();
-    }
-
-    public override void Rollback()
-    {
-        InternalDbTransaction.Rollback();
-        _connection.Close();
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing) InternalDbTransaction.Dispose();
-        base.Dispose(disposing);
-    }
-
-#if NETSTANDARD2_1_OR_GREATER
-    public override async ValueTask DisposeAsync()
-    {
-        await InternalDbTransaction.DisposeAsync();
-        await base.DisposeAsync();
-    }
-
-    public override async Task RollbackAsync(CancellationToken cancellationToken = default)
-    {
-        await InternalDbTransaction.RollbackAsync(cancellationToken);
-        await _connection.CloseAsync();
-    }
-
-    public override async Task CommitAsync(CancellationToken cancellationToken = default)
-    {
-        await InternalDbTransaction.CommitAsync();
-        await _connection.CloseAsync();
-    }
-#endif
-
-    public override object InitializeLifetimeService() => InternalDbTransaction.InitializeLifetimeService();
-    public override bool Equals(object obj) => InternalDbTransaction.Equals(obj);
-    public override int GetHashCode() => InternalDbTransaction.GetHashCode();
-
-    public override string ToString() => InternalDbTransaction.ToString();
-
-    public static implicit operator SqlTransaction(AsyncDbTransaction transaction) => transaction.InternalDbTransaction;
-}
-
-internal class AsyncDbCommand : DbCommand
-{
-    private readonly DbCommand _command;
-    internal AsyncDbCommand(DbCommand command, AsyncSqlConnection connection)
-    {
-        _command = command;
-        DbConnection = connection;
-    }
-
-    public override string CommandText
-    {
-        get => _command.CommandText;
-        set => _command.CommandText = value;
-    }
-    public override int CommandTimeout
-    {
-        get => _command.CommandTimeout;
-        set => _command.CommandTimeout = value;
-    }
-    public override CommandType CommandType
-    {
-        get => _command.CommandType;
-        set => _command.CommandType = value;
-    }
-    public override bool DesignTimeVisible
-    {
-        get => _command.DesignTimeVisible;
-        set => _command.DesignTimeVisible = value;
-    }
-    public override UpdateRowSource UpdatedRowSource
-    {
-        get => _command.UpdatedRowSource;
-        set => _command.UpdatedRowSource = value;
-    }
-    protected override DbConnection DbConnection { get; set; }
-
-    protected override DbParameterCollection DbParameterCollection => _command.Parameters;
-
-    protected override DbTransaction DbTransaction
-    {
-        get => _command.Transaction;
-        set
-        {
-            var transaction = value;
-            if (value is AsyncDbTransaction asyncValue) transaction = asyncValue.InternalDbTransaction;
-            if (value is SqlTransaction sqlTransaction) transaction = sqlTransaction;
-            _command.Transaction = transaction;
-        }
-    }
-
-    public override void Cancel() => _command.Cancel();
-
-    public override int ExecuteNonQuery() => _command.ExecuteNonQuery();
-
-    public override object ExecuteScalar() => _command.ExecuteScalar();
-
-    public override void Prepare() => _command.Prepare();
-
-    protected override DbParameter CreateDbParameter() => _command.CreateParameter();
-
-    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) => _command.ExecuteReader(behavior);
 }

@@ -63,29 +63,31 @@ internal static class SqlConnectionFactory
                 if (!_parsedConnStringDict.TryGetValue(connectionString, out parsedConnectionString))
                 {
                     var builder = new SqlConnectionStringBuilder(connectionString);
-                    if (!builder.Pooling)
-                    {
-                        parsedConnectionString = new ParsedConnInfo(false, 1, 1, connectionString);
-                    }
-                    else
-                    {
-                        builder.Pooling = false;
-                        var minPoolSize = builder.MinPoolSize;
-                        builder.MinPoolSize = 1;
-                        var maxPoolSize = builder.MaxPoolSize;
-                        builder.MaxPoolSize = 1;
-                        var newConnString = builder.ConnectionString;
-                        parsedConnectionString = new ParsedConnInfo(
-                            true,
-                            minPoolSize,
-                            maxPoolSize,
-                            newConnString
-                        );
-                    }
+                    parsedConnectionString = builder.Pooling
+                        ? GetPooledConnParsedInfo(builder)
+                        : new ParsedConnInfo(false, 1, 1, connectionString);
                     _parsedConnStringDict[connectionString] = parsedConnectionString;
                 }
             }
         }
+        return parsedConnectionString;
+    }
+
+    private static ParsedConnInfo GetPooledConnParsedInfo(SqlConnectionStringBuilder builder)
+    {
+        ParsedConnInfo? parsedConnectionString;
+        builder.Pooling = false;
+        var minPoolSize = builder.MinPoolSize;
+        builder.MinPoolSize = 1;
+        var maxPoolSize = builder.MaxPoolSize;
+        builder.MaxPoolSize = 1;
+        var newConnString = builder.ConnectionString;
+        parsedConnectionString = new ParsedConnInfo(
+            true,
+            minPoolSize,
+            maxPoolSize,
+            newConnString
+        );
         return parsedConnectionString;
     }
 
@@ -97,25 +99,7 @@ internal static class SqlConnectionFactory
         {
             lock (_poolDict)
             {
-                if (!_poolDict.TryGetValue(connInfo, out pool))
-                {
-                    var builder = ObjectPools.NewAutoScaleObjectPoolConfigBuilder<SqlConnection>();
-                    _ = builder
-                        .SetMaxSize(connInfo.MaxPoolSize)
-                        .SetMinSize(connInfo.MinPoolSize)
-                        .SetObjectFactory(() =>
-                        {
-                            logger.LogDebug(
-                                "New connection. Acquired: {AcquiredSize}, Available: {AvailableSize}",
-                                _poolDict[connInfo].AcquiredSize,
-                                _poolDict[connInfo].AvailableSize,
-                                _poolDict
-                            );
-                            return new SqlConnection(connInfo.ConnectionString);
-                        })
-                        .SetOnClose((x) => AsyncDbSession.CloseConn(x.Object));
-                    _poolDict[connInfo] = pool = ObjectPools.NewObjectPool(builder.Build());
-                }
+                if (!_poolDict.TryGetValue(connInfo, out pool)) pool = CreteNewPool(logger, connInfo);
             }
         }
         var connectionPooledObject = pool.Acquire();
@@ -124,6 +108,28 @@ internal static class SqlConnectionFactory
             connectionPooledObject,
             connInfo
         ));
+    }
+
+    private static IObjectPool<SqlConnection> CreteNewPool(ILogger logger, ParsedConnInfo connInfo)
+    {
+        IObjectPool<SqlConnection>? pool;
+        var builder = ObjectPools.NewAutoScaleObjectPoolConfigBuilder<SqlConnection>();
+        builder
+            .SetMaxSize(connInfo.MaxPoolSize)
+            .SetMinSize(connInfo.MinPoolSize)
+            .SetObjectFactory(() =>
+            {
+                logger.LogDebug(
+                    "New connection. Acquired: {AcquiredSize}, Available: {AvailableSize}",
+                    _poolDict[connInfo].AcquiredSize,
+                    _poolDict[connInfo].AvailableSize,
+                    _poolDict
+                );
+                return new SqlConnection(connInfo.ConnectionString);
+            })
+            .SetOnClose((x) => AsyncDbSession.CloseConn(x.Object));
+        _poolDict[connInfo] = pool = ObjectPools.NewObjectPool(builder.Build());
+        return pool;
     }
 
     public static void ReleaseConnection(object? token)
