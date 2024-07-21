@@ -1,3 +1,10 @@
+## [0.0.4](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.3...v0.0.4) (2024-07-21)
+
+
+### Bug Fixes
+
+* refactoring BatchQuery ([833f1af](https://github.com/codibre/dotnet-async-local-mssql-session/commit/833f1afef40296f0c7a1128413329649e94ed2fc))
+
 ## [0.0.3](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.2...v0.0.3) (2024-07-21)
 
 
