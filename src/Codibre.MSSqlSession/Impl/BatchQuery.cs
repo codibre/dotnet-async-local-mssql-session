@@ -102,35 +102,23 @@ internal class BatchQuery : IBatchQuery
         else await Execute(_transactionControl.Options.CustomTimeout);
     }
 
-    public async Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions? options = null)
+    private async Task CommitSingleRoundTripTransaction()
     {
-        using var control = _transactionControl.Activate(options);
-        if (_builder.QueryCount > 0) throw new InvalidOperationException("Query buffer not empty");
-        try
-        {
-            await query(this);
-            if (_transactionControl.Cancelled)
-            {
-                await _session.Rollback();
-                Clear();
-            }
-            else if (_transactionControl.Open)
-            {
-                await ExecuteInTransaction();
-                await _session.Commit();
-            }
-            else
-            {
-                _builder.Prepend(_beginTran);
-                AddNoResultScript(_commitTran);
-                await ExecuteInTransaction();
-            }
-        }
-        catch (Exception)
-        {
-            if (_transactionControl.Open) await _session.Rollback();
-            throw;
-        }
+        _builder.Prepend(_beginTran);
+        AddNoResultScript(_commitTran);
+        await ExecuteInTransaction();
+    }
+
+    private async Task CommitSplittedTransaction()
+    {
+        await ExecuteInTransaction();
+        await _session.Commit();
+    }
+
+    private async Task RollBack()
+    {
+        await _session.Rollback();
+        Clear();
     }
 
     public Task RunInTransaction(Func<ValueTask> query, RunInTransactionOptions? options = null)
@@ -158,6 +146,24 @@ internal class BatchQuery : IBatchQuery
             result = await query(bq);
         }, options);
         return result!;
+    }
+
+    public async Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions? options = null)
+    {
+        using var control = _transactionControl.Activate(options);
+        if (_builder.QueryCount > 0) throw new InvalidOperationException("Query buffer not empty");
+        try
+        {
+            await query(this);
+            if (_transactionControl.Cancelled) await RollBack();
+            else if (_transactionControl.Open) await CommitSplittedTransaction();
+            else await CommitSingleRoundTripTransaction();
+        }
+        catch (Exception)
+        {
+            if (_transactionControl.Open) await _session.Rollback();
+            throw;
+        }
     }
 
     public void CancelTransaction()
