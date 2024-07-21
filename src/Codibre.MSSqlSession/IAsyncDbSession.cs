@@ -16,6 +16,6 @@ public interface IAsyncDbSession : IDisposable
     Task Commit();
 
     Task Rollback();
-    Task<IDisposable> StartSession();
+    Task<IDisposable?> StartSession();
     IScriptBuilder CreateScriptBuilder();
 }

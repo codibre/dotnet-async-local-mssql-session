@@ -15,6 +15,7 @@ internal sealed class DummyDisposable : IDisposable
 
 internal sealed class AsyncDbSession : IAsyncDbSession
 {
+    private static readonly Task<IDisposable?> _nullTask = Task.FromResult((IDisposable?)null);
     private static readonly object _updateToken = new();
     private static DateTime _omitLogDeadline = DateTime.Now;
     private readonly bool _customPool;
@@ -70,7 +71,7 @@ internal sealed class AsyncDbSession : IAsyncDbSession
         _connectionString = connectionString;
     }
 
-    public async Task Clear()
+    public async ValueTask Clear()
     {
         if (Transaction is null) await Commit();
         await CloseConn(Connection);
@@ -109,7 +110,7 @@ internal sealed class AsyncDbSession : IAsyncDbSession
         }
     }
 
-    public Task<IDisposable> StartSession()
+    public Task<IDisposable?> StartSession()
     {
         if (ConnectionAcquired)
         {
@@ -120,7 +121,7 @@ internal sealed class AsyncDbSession : IAsyncDbSession
                 _logger.LogWarning("Nested IAsyncDBSession.StartSession call! Review the code! {Trace}", trace);
                 UpdateOmitLogDeadline(now);
             }
-            return Task.FromResult<IDisposable>(new DummyDisposable());
+            return _nullTask;
         }
         var (connection, disposer) = CreateAsyncLocalConnection();
         return ConnectAndReturnDisposable(connection, disposer);
@@ -148,7 +149,7 @@ internal sealed class AsyncDbSession : IAsyncDbSession
         return (connection, disposer);
     }
 
-    private async Task<IDisposable> ConnectAndReturnDisposable(AsyncSqlConnection connection, CrossedDisposer disposer)
+    private async Task<IDisposable?> ConnectAndReturnDisposable(AsyncSqlConnection connection, CrossedDisposer disposer)
     {
         await connection.OpenAsync();
         return disposer;
@@ -176,14 +177,14 @@ internal sealed class AsyncDbSession : IAsyncDbSession
         return AsyncInternalStartTransaction(task);
     }
 
-    private async Task<IDisposable> AsyncInternalStartTransaction(Task<IDisposable> task)
+    private async Task<IDisposable> AsyncInternalStartTransaction(Task<IDisposable?> task)
     {
         var result = await task;
         var transactionDisposer = await InternalStartTransaction();
         return new CallbackDisposer(() =>
         {
             transactionDisposer.Dispose();
-            result.Dispose();
+            result?.Dispose();
         });
     }
 
