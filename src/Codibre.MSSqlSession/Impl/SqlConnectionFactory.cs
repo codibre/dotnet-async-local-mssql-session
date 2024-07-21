@@ -38,14 +38,11 @@ internal class ParsedConnInfo
     }
 
     public override bool Equals(object obj)
-    {
-        if (obj is not ParsedConnInfo p) return false;
-        if (p.Pooling != Pooling) return false;
-        if (p.MinPoolSize != MinPoolSize) return false;
-        if (p.MaxPoolSize != MaxPoolSize) return false;
-        if (p.ConnectionString != ConnectionString) return false;
-        return true;
-    }
+        => obj is ParsedConnInfo p
+            && p.Pooling == Pooling
+            && p.MinPoolSize == MinPoolSize
+            && p.MaxPoolSize == MaxPoolSize
+            && p.ConnectionString == ConnectionString;
 
     public override int GetHashCode()
         => (Pooling, MinPoolSize, MaxPoolSize, ConnectionString).GetHashCode();
