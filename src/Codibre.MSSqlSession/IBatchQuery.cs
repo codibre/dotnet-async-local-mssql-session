@@ -7,7 +7,6 @@ public interface IResultHook<out T>
 
 public class RunInTransactionOptions
 {
-    public int ParamMargin { get; set; } = 100;
     public TimeSpan? CustomTimeout { get; set; }
 }
 
@@ -50,22 +49,10 @@ public interface IBatchQuery
     int ParamCount { get; }
     IAsyncEnumerable<KeyValuePair<TInput, TOutput>> PrepareEnumerable<TInput, TOutput>(
         IEnumerable<TInput> enumerable,
-        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery,
-        int paramMargin = 100
+        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery
     );
 
     /// <summary>
-    /// Use the callback to set up a transaction that will be performed in lot with the bank.
-    /// This method will break the lot in several if the number of parameters is large
-    /// Too too much for the SQL driver support the command, but for that, you need
-    /// the operations using the AddtransaSaSctationScript method, which will depart the commands
-    /// accumulated in various scripts and send them sequentially if necessary.
-    /// </summary>
-    /// <param name="query">The callback that will perform the search.Receives a reference to BatchQuery himself</param>
-    /// <param name="paramMargin">Security margin for the parameter limit, that is, the script will be broken if the amount exceeds the maximum - this margin.The default is 100</param>
-    /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Func<IBatchQuery, ValueTask> query, int paramMargin = 100);
-    /// <summary>
     /// uses callback to set up a transaction that will be performed in lot with the bank.
     /// This method will break the lot in several if the number of parameters is large
     /// Too too much for the SQL driver support the command, but for that, you need
@@ -73,20 +60,9 @@ public interface IBatchQuery
     /// accumulated in various scripts and send them sequentially if necessary.
     /// </summary>
     /// <param name="query">The callback that will perform the search.</param>
-    /// <param name="paramMargin">Security margin for the parameter limit, that is, the script will be broken if the amount exceeds the maximum - this margin.The default is 100</param>
+    /// <param name="options">To define safety margin and a customized command timeout</param>
     /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Func<ValueTask> query, int paramMargin = 100);
-    /// <summary>
-    /// uses callback to set up a transaction that will be performed in lot with the bank.
-    /// This method will break the lot in several if the number of parameters is large
-    /// Too too much for the SQL driver support the command, but for that, you need
-    /// the operations using the AddtransaSaSctationScript method, which will depart the commands
-    /// accumulated in various scripts and send them sequentially if necessary.
-    /// </summary>
-    /// <param name="query">The callback that will perform the search.Receives a reference to BatchQuery himself</param>
-    /// <param name="paramMargin">Security margin for the parameter limit, that is, the script will be broken if the amount exceeds the maximum - this margin.The default is 100</param>
-    /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Action<IBatchQuery> query, int paramMargin = 100);
+    Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions? options = null);
     /// <summary>
     /// uses callback to set up a transaction that will be performed in lot with the bank.
     /// This method will break the lot in several if the number of parameters is large
@@ -97,7 +73,7 @@ public interface IBatchQuery
     /// <param name="query">The callback that will perform the search.</param>
     /// <param name="options">To define safety margin and a customized command timeout</param>
     /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions options);
+    Task RunInTransaction(Func<ValueTask> query, RunInTransactionOptions? options = null);
     /// <summary>
     /// uses callback to set up a transaction that will be performed in lot with the bank.
     /// This method will break the lot in several if the number of parameters is large
@@ -108,18 +84,7 @@ public interface IBatchQuery
     /// <param name="query">The callback that will perform the search.</param>
     /// <param name="options">To define safety margin and a customized command timeout</param>
     /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Func<ValueTask> query, RunInTransactionOptions options);
-    /// <summary>
-    /// uses callback to set up a transaction that will be performed in lot with the bank.
-    /// This method will break the lot in several if the number of parameters is large
-    /// Too too much for the SQL driver support the command, but for that, you need
-    /// the operations using the AddtransaSaSctationScript method, which will depart the commands
-    /// accumulated in various scripts and send them sequentially if necessary.
-    /// </summary>
-    /// <param name="query">The callback that will perform the search.</param>
-    /// <param name="options">To define safety margin and a customized command timeout</param>
-    /// <returns>Returns a task, which must be awaited, which will perform the transaction</returns>
-    Task RunInTransaction(Action query, RunInTransactionOptions options);
+    Task RunInTransaction(Action query, RunInTransactionOptions? options = null);
     /// <summary>
     /// uses callback to set up a transaction that will be performed in lot with the bank.
     /// This method will break the lot in several if the number of parameters is large

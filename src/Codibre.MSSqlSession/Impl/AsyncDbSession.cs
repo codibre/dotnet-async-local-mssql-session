@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using Codibre.MSSqlSession.Impl.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -79,15 +80,8 @@ internal sealed class AsyncDbSession : IAsyncDbSession
     {
         var transaction = Transaction;
         if (transaction is null) return;
-        try
-        {
-            await InternalCommit(transaction);
-            Transaction = null;
-        }
-        finally
-        {
-            Transaction = null;
-        }
+        Transaction = null;
+        await InternalCommit(transaction);
     }
 
     public void Dispose()

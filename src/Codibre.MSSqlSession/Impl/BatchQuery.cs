@@ -147,8 +147,7 @@ internal class BatchQuery : IBatchQuery
 
     private async IAsyncEnumerable<IList<KeyValuePair<TInput, TOutput>>> InternalPrepareEnumerable<TInput, TOutput>(
         IEnumerable<TInput> enumerable,
-        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery,
-        int paramMargin = 100
+        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery
     )
     {
         using (_session.ConnectionAcquired ? null : await _session.StartSession())
@@ -166,7 +165,7 @@ internal class BatchQuery : IBatchQuery
                         var preparedValue = await PreRunQuery(current, this);
                         result.Add(new KeyValuePair<TInput, TOutput>(current, preparedValue));
                         hasNext = enumerator.MoveNext();
-                    } while (hasNext && ParamCount + paramMargin < _builder.ParamLimit);
+                    } while (hasNext && ParamCount < _builder.ParamLimit);
                     await RunQueries();
                     yield return result;
                 }
@@ -180,9 +179,8 @@ internal class BatchQuery : IBatchQuery
 
     public IAsyncEnumerable<KeyValuePair<TInput, TOutput>> PrepareEnumerable<TInput, TOutput>(
         IEnumerable<TInput> enumerable,
-        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery,
-        int paramMargin = 100
-    ) => InternalPrepareEnumerable(enumerable, PreRunQuery, paramMargin)
+        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery
+    ) => InternalPrepareEnumerable(enumerable, PreRunQuery)
             .SelectMany(x => x.ToAsyncEnumerable());
 
     private async ValueTask InternalFlushTransaction()
@@ -197,11 +195,11 @@ internal class BatchQuery : IBatchQuery
     public async ValueTask AddTransactionScript(FormattableString builtScript)
     {
         ValidateInTransaction();
-        if (_builder.ParamCount + _transactionOptions!.ParamMargin >= _builder.ParamLimit)
+        if (!_builder.TryAdd(builtScript))
         {
             await InternalFlushTransaction();
+            _builder.Add(builtScript);
         }
-        _builder.Add(builtScript);
     }
 
     public ValueTask FlushTransaction()
@@ -221,33 +219,11 @@ internal class BatchQuery : IBatchQuery
         else await Execute(_transactionOptions!.CustomTimeout);
     }
 
-    public Task RunInTransaction(Func<IBatchQuery, ValueTask> query, int paramMargin = 100)
-        => RunInTransaction(query, new RunInTransactionOptions
-        {
-            ParamMargin = paramMargin
-        });
-
-    public Task RunInTransaction(Func<ValueTask> query, int paramMargin = 100)
-        => RunInTransaction((_) => query(), paramMargin);
-
-    public Task RunInTransaction(Action<IBatchQuery> query, int paramMargin = 100)
-        => RunInTransaction((bq) =>
-        {
-            query(bq);
-            return new ValueTask();
-        }, paramMargin);
-
-    public Task RunInTransaction(Action query, int paramMargin = 100)
-        => RunInTransaction((bq) =>
-        {
-            query();
-            return new ValueTask();
-        }, paramMargin);
-
-    public async Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions options)
+    public async Task RunInTransaction(Func<IBatchQuery, ValueTask> query, RunInTransactionOptions? options = null)
     {
         if (_inTransaction) throw new InvalidOperationException("RunInTransaction Already called");
         if (_builder.QueryCount > 0) throw new InvalidOperationException("Query buffer not empty");
+        options ??= new();
         try
         {
             _inTransaction = true;
@@ -288,10 +264,10 @@ internal class BatchQuery : IBatchQuery
         }
     }
 
-    public Task RunInTransaction(Func<ValueTask> query, RunInTransactionOptions options)
+    public Task RunInTransaction(Func<ValueTask> query, RunInTransactionOptions? options = null)
         => RunInTransaction((_) => query(), options);
 
-    public Task RunInTransaction(Action query, RunInTransactionOptions options)
+    public Task RunInTransaction(Action query, RunInTransactionOptions? options = null)
         => RunInTransaction((_) =>
         {
             query();
@@ -327,17 +303,14 @@ public static class BatchQueryExtension
     public static IAsyncEnumerable<KeyValuePair<TInput, TOutput>> PrepareQueryBatch<TInput, TOutput>(
         this IEnumerable<TInput> enumerable,
         IBatchQuery batchQuery,
-        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery,
-        int paramMargin = 100
-    ) => batchQuery.PrepareEnumerable(enumerable, PreRunQuery, paramMargin);
+        Func<TInput, IBatchQuery, ValueTask<TOutput>> PreRunQuery
+    ) => batchQuery.PrepareEnumerable(enumerable, PreRunQuery);
     public static IAsyncEnumerable<KeyValuePair<TInput, TOutput>> PrepareQueryBatch<TInput, TOutput>(
         this IEnumerable<TInput> enumerable,
         IBatchQuery batchQuery,
-        Func<TInput, IBatchQuery, TOutput> PreRunQuery,
-        int paramMargin = 100
+        Func<TInput, IBatchQuery, TOutput> PreRunQuery
     ) => batchQuery.PrepareEnumerable(
         enumerable,
-        (input, bq) => new ValueTask<TOutput>(PreRunQuery(input, bq)),
-        paramMargin
+        (input, bq) => new ValueTask<TOutput>(PreRunQuery(input, bq))
     );
 }

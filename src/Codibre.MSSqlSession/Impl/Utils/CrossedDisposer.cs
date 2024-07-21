@@ -1,4 +1,4 @@
-﻿namespace Codibre.MSSqlSession.Impl;
+﻿namespace Codibre.MSSqlSession.Impl.Utils;
 
 internal sealed class CrossedDisposer : IDisposable
 {
