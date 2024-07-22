@@ -1,3 +1,10 @@
+## [0.0.6](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.5...v0.0.6) (2024-07-22)
+
+
+### Bug Fixes
+
+* treating exception on dispose ([4016407](https://github.com/codibre/dotnet-async-local-mssql-session/commit/40164075b08a57ed3ed435afb411fcf8ed68b595))
+
 ## [0.0.5](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.4...v0.0.5) (2024-07-22)
 
 
