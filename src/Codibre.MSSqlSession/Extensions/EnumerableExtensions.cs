@@ -43,26 +43,24 @@ public static class EnumerableExtensions
         await foreach (var x in enumerable)
         {
             await semaphore.WaitAsync();
-            RunSemaphoredTransform(transform, semaphore, result, exceptions, x);
+            RunSemaphoredTransform(async () => result.Add(await transform(x)), semaphore, exceptions);
         }
         await semaphore.WaitAll(maxConcurrency);
         if (exceptions.Count > 0) throw new AggregateException(exceptions);
         return result;
     }
 
-    private static void RunSemaphoredTransform<T, R>(
-        Func<T, Task<R>> transform,
+    private static void RunSemaphoredTransform(
+        Func<Task> call,
         SemaphoreSlim semaphore,
-        List<R> result,
-        List<Exception> exceptions,
-        T item
+        List<Exception> exceptions
     )
     {
         _ = Task.Run(async () =>
         {
             try
             {
-                result.Add(await transform(item));
+                await call();
             }
             catch (Exception ex)
             {
