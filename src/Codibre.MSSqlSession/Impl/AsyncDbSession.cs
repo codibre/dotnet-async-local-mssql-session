@@ -89,9 +89,12 @@ internal sealed class AsyncDbSession : IAsyncDbSession
     {
         var storage = _asyncStorage.Value;
         if (storage is null) return;
-        storage.Transaction?.Rollback();
-        storage.Connection?.Close();
-        storage.Connection?.Dispose();
+        if (storage.Transaction is not null) Helper.Try(() => storage.Transaction.Rollback());
+        if (storage.Connection is not null)
+        {
+            Helper.Try(() => storage.Connection.Close());
+            Helper.Try(() => storage.Connection.Dispose());
+        }
         _asyncStorage.Value = null;
     }
 
