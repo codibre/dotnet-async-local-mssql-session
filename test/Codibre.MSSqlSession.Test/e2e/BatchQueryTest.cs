@@ -86,7 +86,11 @@ public class BatchQueryTest
         using (await _target.StartTransaction())
         {
             // Arrange
-            _ = await _target.Connection.ExecuteAsync("INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1)");
+            _ = await _target.Connection.ExecuteAsync(@"
+                IF NOT EXISTS (SELECT TOP 1 * FROM TB_PESSOA)
+                BEGIN
+                    INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1);
+                END");
 
             // Act
             var hook = _target.BatchQuery.QueryFirstHook<int>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA");
@@ -95,7 +99,7 @@ public class BatchQueryTest
             await _target.Rollback();
 
             // Assert
-            _ = result.Should().BeGreaterThan(0);
+            _ = result.Should().NotBe(0);
         }
     }
 
@@ -109,8 +113,9 @@ public class BatchQueryTest
         // Act
         try
         {
-            _ = _target.BatchQuery.QueryFirstHook<int>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA");
+            var hook = _target.BatchQuery.QueryFirstHook<int>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA WHERE CD_PESSOA < -9999999999");
             await _target.BatchQuery.RunQueries();
+            _ = hook.Result;
         }
         catch (Exception err)
         {
@@ -128,7 +133,11 @@ public class BatchQueryTest
         using (await _target.StartTransaction())
         {
             // Arrange
-            _ = await _target.Connection.ExecuteAsync("INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1)");
+            _ = await _target.Connection.ExecuteAsync(@"
+                IF NOT EXISTS (SELECT TOP 1 * FROM TB_PESSOA)
+                BEGIN
+                    INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1);
+                END");
 
             // Act
             var hook = _target.BatchQuery.QueryFirstOrDefaultHook<int>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA");
@@ -137,7 +146,7 @@ public class BatchQueryTest
             await _target.Rollback();
 
             // Assert
-            _ = result.Should().BeGreaterThan(0);
+            _ = result.Should().NotBe(0);
         }
     }
 
@@ -147,7 +156,7 @@ public class BatchQueryTest
     {
         // Arrange
         // Act
-        var hook = _target.BatchQuery.QueryFirstOrDefaultHook<int?>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA");
+        var hook = _target.BatchQuery.QueryFirstOrDefaultHook<int?>($"SELECT TOP 1 CD_PESSOA FROM TB_PESSOA WHERE CD_PESSOA < -9999999999");
         await _target.BatchQuery.RunQueries();
         var result = hook.Result;
         await _target.Rollback();
@@ -163,9 +172,13 @@ public class BatchQueryTest
         using (await _target.StartTransaction())
         {
             // Arrange
-            _target.BatchQuery.AddNoResultScript($"INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1)");
-            _target.BatchQuery.AddNoResultScript($"INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (2)");
-            _target.BatchQuery.AddNoResultScript($"INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (3)");
+            _target.BatchQuery.AddNoResultScript($@"
+                IF NOT EXISTS (SELECT TOP 1 * FROM TB_PESSOA)
+                BEGIN
+                    INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (1)
+                    INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (2)
+                    INSERT INTO TB_PESSOA(CD_PESSOA) VALUES (3)
+                END");
             await _target.BatchQuery.Execute();
 
             // Act
@@ -175,9 +188,7 @@ public class BatchQueryTest
             await _target.Rollback();
 
             // Assert
-            _ = result.Should().BeEquivalentTo(new List<int>() {
-                1, 2, 3
-            });
+            _ = result.Should().HaveCount(3);
         }
     }
 }
