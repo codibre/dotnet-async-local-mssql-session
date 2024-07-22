@@ -131,20 +131,20 @@ internal class BatchQuery : IBatchQuery
             return new ValueTask();
         }, options);
 
-    public async Task<T> RunInTransaction<T>(Func<ValueTask<T>> query, RunInTransactionOptions? options = null)
-        => await RunInTransaction((_) => query(), options);
+    public Task<T> RunInTransaction<T>(Func<ValueTask<T>> query, RunInTransactionOptions? options = null)
+        => RunInTransaction((_) => query(), options);
 
     public async Task<T> RunInTransaction<T>(Func<IBatchQuery, ValueTask<T>> query, RunInTransactionOptions? options = null)
     {
         T? result = default;
         if (options is null) await RunInTransaction(async (bq) =>
-        {
-            result = await query(bq);
-        });
+            {
+                result = await query(bq);
+            });
         else await RunInTransaction(async (bq) =>
-        {
-            result = await query(bq);
-        }, options);
+            {
+                result = await query(bq);
+            }, options);
         return result!;
     }
 
@@ -161,7 +161,7 @@ internal class BatchQuery : IBatchQuery
         }
         catch (Exception)
         {
-            if (_transactionControl.Open) await _session.Rollback();
+            if (_transactionControl.Open) await RollBack();
             throw;
         }
     }

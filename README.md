@@ -1,3 +1,9 @@
+[![Actions Status](https://github.com/Codibre/dotnet-async-local-mssql-session/workflows/build/badge.svg)](https://github.com/Codibre/dotnet-async-local-mssql-session/actions)
+[![Actions Status](https://github.com/Codibre/dotnet-async-local-mssql-session/workflows/test/badge.svg)](https://github.com/Codibre/dotnet-async-local-mssql-session/actions)
+[![Actions Status](https://github.com/Codibre/dotnet-async-local-mssql-session/workflows/lint/badge.svg)](https://github.com/Codibre/dotnet-async-local-mssql-session/actions)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/a70dd4bf03f42c1f05b0/test_coverage)](https://codeclimate.com/github/codibre/dotnet-async-local-mssql-session/test_coverage)
+[![Maintainability](https://api.codeclimate.com/v1/badges/a70dd4bf03f42c1f05b0/maintainability)](https://codeclimate.com/github/codibre/dotnet-async-local-mssql-session/maintainability)
+
 # Codibre.MSSqlSession
 
 Library for SqlClient connections using AsyncLocal for management
