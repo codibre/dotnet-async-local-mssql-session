@@ -1,3 +1,10 @@
+## [0.0.5](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.4...v0.0.5) (2024-07-22)
+
+
+### Bug Fixes
+
+* refactoring AsyncConnection again ([4a100b2](https://github.com/codibre/dotnet-async-local-mssql-session/commit/4a100b25182fd8236ec250b68becb89c65926fa9))
+
 ## [0.0.4](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.3...v0.0.4) (2024-07-21)
 
 
