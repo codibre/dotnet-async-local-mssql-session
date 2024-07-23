@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Concurrent;
+using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using Codibre.MSSqlSession.Extensions;
@@ -14,8 +15,8 @@ public class AsyncScopeTest
 {
     private readonly HostApplicationBuilder _builder;
     private IAsyncDbSession? _pivot = null;
-    private readonly HashSet<DbTransaction> _transactions1 = [];
-    private readonly HashSet<DbTransaction> _transactions2 = [];
+    private readonly ConcurrentDictionary<DbTransaction, byte> _transactions1 = [];
+    private readonly ConcurrentDictionary<DbTransaction, byte> _transactions2 = [];
     private readonly ITestOutputHelper _testOutputHelper;
     private readonly IConfigurationRoot _config;
     public AsyncScopeTest(ITestOutputHelper testOutputHelper)
@@ -28,7 +29,7 @@ public class AsyncScopeTest
             .AddJsonFile("appsettings.json", true)
             .AddEnvironmentVariables()
             .Build();
-        _ = _builder.Services.AddSingleton<IConfiguration>(_config);
+        _builder.Services.AddSingleton<IConfiguration>(_config);
     }
 
     internal async Task Run(IAsyncDbSession session)
@@ -57,7 +58,7 @@ public class AsyncScopeTest
     internal async Task RunSubTask(
         IAsyncDbSession session,
         int count,
-        HashSet<DbTransaction> transactions
+        ConcurrentDictionary<DbTransaction, byte> transactions
     )
     {
         await session.Run(async () =>
@@ -65,12 +66,12 @@ public class AsyncScopeTest
             if (_pivot != session) throw new Exception("Different session!");
             _testOutputHelper.WriteLine($"{count} START");
             if (session.Transaction is not null) throw new Exception("Scope invasion!");
-            _ = await session.Connection.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
+            await session.Connection.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
             _testOutputHelper.WriteLine($"{count} CONNECTED");
-            _ = await session.StartTransaction();
+            await session.StartTransaction();
             if (session.Transaction is null) throw new Exception("Transaction not created!");
-            _ = transactions.Add(session.Transaction);
-            _ = await session.Connection.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
+            transactions.TryAdd(session.Transaction, 0);
+            await session.Connection.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
             _testOutputHelper.WriteLine($"{count} TRANSACTION");
             await Task.Delay(5000);
             await session.Rollback();
@@ -92,8 +93,8 @@ public class AsyncScopeTest
         await Run(session);
 
         // Assert
-        _ = _transactions1.Count.Should().BeGreaterThan(8);
-        _ = _transactions2.Count.Should().BeGreaterThan(8);
+        _transactions1.Count.Should().BeGreaterThan(8);
+        _transactions2.Count.Should().BeGreaterThan(8);
     }
 
     [Theory]
@@ -114,16 +115,16 @@ public class AsyncScopeTest
         {
             ;
             connection1 = session.Connection;
-            _ = await connection1.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
+            await connection1.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
             connection2 = session.Connection;
-            _ = await connection2.QueryAsync("SELECT TOP 1 * FROM TB_PESSOA");
+            await connection2.QueryAsync("SELECT TOP 1 * FROM TB_PESSOA");
             connection3 = session.Connection;
-            _ = await connection3.QueryAsync("SELECT TOP 1 * FROM TB_PEDIDO");
+            await connection3.QueryAsync("SELECT TOP 1 * FROM TB_PEDIDO");
         });
 
         // Assert
-        _ = connection1.Should().Be(connection2);
-        _ = connection1.Should().Be(connection3);
+        connection1.Should().Be(connection2);
+        connection1.Should().Be(connection3);
     }
 
     [Theory]
@@ -143,23 +144,23 @@ public class AsyncScopeTest
         await session.Run(async () =>
         {
             connection1 = session.Connection;
-            _ = await connection1.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
+            await connection1.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
         });
         await session.Run(async () =>
         {
             connection2 = session.Connection;
-            _ = await connection2.QueryAsync("SELECT TOP 1 * FROM TB_PESSOA");
+            await connection2.QueryAsync("SELECT TOP 1 * FROM TB_PESSOA");
         });
         await session.Run(async () =>
         {
             connection3 = session.Connection;
-            _ = await connection3.QueryAsync("SELECT TOP 1 * FROM TB_PEDIDO");
+            await connection3.QueryAsync("SELECT TOP 1 * FROM TB_PEDIDO");
         });
 
         // Assert
-        _ = connection1.Should().NotBe(connection2);
-        _ = connection1.Should().NotBe(connection3);
-        _ = connection2.Should().NotBe(connection3);
+        connection1.Should().NotBe(connection2);
+        connection1.Should().NotBe(connection3);
+        connection2.Should().NotBe(connection3);
     }
 
     [Theory]
@@ -186,12 +187,12 @@ public class AsyncScopeTest
         var result2 = await session.Connection.QueryAsync("SELECT TOP 1 * FROM TB_PRODUTO");
 
         // Assert
-        _ = result1.Should().NotBeNull();
-        _ = result2.Should().NotBeNull();
-        _ = connection.Should().NotBe(connection2);
-        _ = inScopeSameConnection.Should().BeTrue();
-        _ = connection2.Should().Be(session.Connection);
-        _ = connection!.State.Should().Be(ConnectionState.Closed);
-        _ = connection2.State.Should().Be(ConnectionState.Closed);
+        result1.Should().NotBeNull();
+        result2.Should().NotBeNull();
+        connection.Should().NotBe(connection2);
+        inScopeSameConnection.Should().BeTrue();
+        connection2.Should().Be(session.Connection);
+        connection!.State.Should().Be(ConnectionState.Closed);
+        connection2.State.Should().Be(ConnectionState.Closed);
     }
 }

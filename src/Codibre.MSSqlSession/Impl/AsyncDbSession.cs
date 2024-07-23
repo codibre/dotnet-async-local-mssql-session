@@ -18,10 +18,9 @@ internal sealed class AsyncDbSession : IAsyncDbSession
     private static readonly Task<IDisposable?> _nullTask = Task.FromResult((IDisposable?)null);
     private static readonly object _updateToken = new();
     private static DateTime _omitLogDeadline = DateTime.Now;
-    private readonly bool _customPool;
     private readonly AsyncLocal<AsyncDbStorage?> _asyncStorage = new();
     private readonly ILogger<IAsyncDbSession> _logger;
-    private readonly string _connectionString;
+    private readonly AsyncSqlOptions _options;
     public DbTransaction? Transaction
     {
         get => _asyncStorage.Value?.Transaction;
@@ -64,11 +63,20 @@ internal sealed class AsyncDbSession : IAsyncDbSession
         string connectionString,
         bool customPool,
         ILogger<AsyncDbSession> logger
+    ) : this(logger, new AsyncSqlOptions
+    {
+        ConnectionString = connectionString,
+        CustomPool = customPool
+    })
+    { }
+
+    public AsyncDbSession(
+        ILogger<AsyncDbSession> logger,
+        AsyncSqlOptions options
     )
     {
         _logger = logger;
-        _customPool = customPool;
-        _connectionString = connectionString;
+        _options = options;
     }
 
     public async ValueTask Clear()
@@ -142,10 +150,9 @@ internal sealed class AsyncDbSession : IAsyncDbSession
     {
         var disposer = new CrossedDisposer(this);
         var connection = new AsyncSqlConnection(
-            _connectionString,
+            _options,
             disposer,
             _asyncStorage,
-            _customPool,
             _logger
         );
         _asyncStorage.Value = new AsyncDbStorage(connection);
