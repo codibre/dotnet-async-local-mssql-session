@@ -1,3 +1,10 @@
+## [0.0.7](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.6...v0.0.7) (2024-07-23)
+
+
+### Bug Fixes
+
+* Adding retry support ([a0dce6d](https://github.com/codibre/dotnet-async-local-mssql-session/commit/a0dce6d331adfeec3ece30731ebb824736107305))
+
 ## [0.0.6](https://github.com/codibre/dotnet-async-local-mssql-session/compare/v0.0.5...v0.0.6) (2024-07-22)
 
 
