@@ -19,27 +19,26 @@ namespace Codibre.MSSqlSession.Impl;
 // Threads
 internal class AsyncSqlConnection : DbConnection
 {
-    private string _connectionString;
+    private readonly AsyncSqlOptions _options;
     private string _dataSource;
     private bool _opened = false;
     private SqlConnection? _connection;
     private object? _pooledConnection;
     private readonly CrossedDisposer _disposer;
-    private readonly bool _customPool;
     private readonly AsyncLocal<AsyncDbStorage?> _asyncDbStorage;
     private readonly ILogger _logger;
     public override string ConnectionString
     {
-        get => _connectionString;
+        get => _options.ConnectionString;
         set
         {
-            if (_connectionString != value)
+            if (_options.ConnectionString != value)
             {
                 _connection = null;
                 ReleaseConnection();
             }
-            _connectionString = value;
-            _dataSource = GetDataSource(_connectionString);
+            _options.ConnectionString = value;
+            _dataSource = GetDataSource(_options.ConnectionString);
         }
     }
 
@@ -58,18 +57,16 @@ internal class AsyncSqlConnection : DbConnection
     public override ConnectionState State => _opened && _connection is not null ? _connection.State : ConnectionState.Closed;
 
     internal AsyncSqlConnection(
-        string connectionString,
+        AsyncSqlOptions options,
         CrossedDisposer disposer,
         AsyncLocal<AsyncDbStorage?> currentTransaction,
-        bool customPool,
         ILogger logger
         )
     {
-        _connectionString = connectionString;
+        _options = options;
         _disposer = disposer;
         _asyncDbStorage = currentTransaction;
-        _customPool = customPool;
-        _dataSource = GetDataSource(connectionString);
+        _dataSource = GetDataSource(_options.ConnectionString);
         _logger = logger;
     }
 
@@ -79,7 +76,7 @@ internal class AsyncSqlConnection : DbConnection
         {
             if (_connection is null)
             {
-                if (_customPool) (_connection, _pooledConnection) = SqlConnectionFactory.GetConnection(ConnectionString, _logger);
+                if (_options.CustomPool) (_connection, _pooledConnection) = SqlConnectionFactory.GetConnection(ConnectionString, _logger);
                 else _connection = new SqlConnection(ConnectionString);
             }
             return _connection;
@@ -145,7 +142,9 @@ internal class AsyncSqlConnection : DbConnection
 
     protected override DbCommand CreateDbCommand()
     {
-        var command = new AsyncDbCommand(Connection.CreateCommand(), this);
+        var sqlCommand = Connection.CreateCommand();
+        if (_options.RetryLogicBaseProvider is not null) sqlCommand.RetryLogicProvider = _options.RetryLogicBaseProvider;
+        var command = new AsyncDbCommand(sqlCommand, this);
         var value = _asyncDbStorage.Value;
         if (value != null)
         {
